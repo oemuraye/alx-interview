@@ -1,25 +1,38 @@
 #!/usr/bin/node
-const request = require('request');
-const API_URL = 'https://swapi-api.hbtn.io/api';
+function getMovieCharacters(movieId) {
+    const apiUrl = `https://swapi.dev/api/films/${movieId}/`;
 
-if (process.argv.length > 2) {
-  request(`${API_URL}/films/${process.argv[2]}/`, (err, _, body) => {
-    if (err) {
-      console.log(err);
-    }
-    const charactersURL = JSON.parse(body).characters;
-    const charactersName = charactersURL.map(
-      url => new Promise((resolve, reject) => {
-        request(url, (promiseErr, __, charactersReqBody) => {
-          if (promiseErr) {
-            reject(promiseErr);
-          }
-          resolve(JSON.parse(charactersReqBody).name);
+    fetch(apiUrl)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            const characters = data.characters;
+            const characterPromises = characters.map(characterUrl =>
+                fetch(characterUrl)
+                    .then(response => response.json())
+                    .then(characterData => characterData.name)
+            );
+
+            return Promise.all(characterPromises);
+        })
+        .then(characterNames => {
+            characterNames.forEach(name => {
+                console.log(name);
+            });
+        })
+        .catch(error => {
+            console.error("Error:", error);
         });
-      }));
-
-    Promise.all(charactersName)
-      .then(names => console.log(names.join('\n')))
-      .catch(allErr => console.log(allErr));
-  });
 }
+
+if (process.argv.length !== 3) {
+    console.log("Usage: node starwars_characters.js <movie_id>");
+    process.exit(1);
+}
+
+const movieId = process.argv[2];
+getMovieCharacters(movieId);
